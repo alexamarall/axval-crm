@@ -1121,7 +1121,7 @@ function openProposta(id) {
   if(!p) return;
   const c = clients.find(x => x.id === p.clienteId)||{};
   const f = fornecedores.find(x => x.id === p.fornecedorId)||null;
-  const itensHtml = (p.itens||[]).length ? (p.itens||[]).map(it=>`
+  const itensHtml = (p.itens||[]).length ? (p.itens||[]).map((it,i)=>`
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
       <span style="color:var(--white);flex:1">${it.desc}</span>
       <span style="color:var(--text2);margin:0 8px">IPI ${it.ipi}%</span>
@@ -1131,8 +1131,11 @@ function openProposta(id) {
   const total = (p.itens||[]).reduce((a,i)=>a+(i.valorTotal||0),0);
   document.getElementById('modal-box').innerHTML = `
     <div class="modal-handle"></div>
-    <div class="proposta-num">${fmtNum(p.num)}</div>
-    <div style="font-size:12px;color:var(--text2);margin-bottom:14px">${p.data||''} · ${p.status||'Rascunho'} · ${c.nome||'—'}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="proposta-num">${fmtNum(p.num)}</div>
+      <span class="badge badge-${p.status==='Aprovada'?'ganho':p.status==='Recusada'?'perdido':p.status==='Enviada'?'prop':'prosp'}">${p.status||'Rascunho'}</span>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px">${p.data||''} · ${c.nome||'—'}</div>
     <div style="font-size:12px;color:var(--text2);margin-bottom:4px">ITENS</div>
     ${itensHtml}
     <div style="display:flex;justify-content:space-between;padding:10px 0;margin-bottom:14px">
@@ -1142,10 +1145,76 @@ function openProposta(id) {
     ${f ? `<div style="font-size:12px;color:var(--text2);margin-bottom:4px">FORNECEDOR</div><div style="font-size:13px;color:var(--white);margin-bottom:14px">${f.nome}</div>` : ''}
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn-ghost" onclick="closeModal();editarProposta(${id})">✏ Editar</button>
       <button class="btn-yellow" onclick="exportPropostaPDF(${id})">📄 PDF</button>
     </div>
   `;
   document.getElementById('modal-overlay').classList.add('open');
+}
+
+function editarProposta(id) {
+  const p = propostas.find(x=>x.id===id);
+  if(!p) return;
+  _itensTemp = JSON.parse(JSON.stringify(p.itens||[]));
+  const clientOpts = clients.map(c=>`<option value="${c.id}"${c.id===p.clienteId?' selected':''}>${c.nome}</option>`).join('');
+  const catOpts = CATEGORIAS.map(c=>`<option value="${c}"${c===p.categoria?' selected':''}>${c}</option>`).join('');
+  const fornOpts = '<option value="">Revenda direta</option>' + fornecedores.map(f=>`<option value="${f.id}"${f.id===p.fornecedorId?' selected':''}>${f.nome}</option>`).join('');
+  const box = document.getElementById('modal-box');
+  box.innerHTML = `
+    <div class="modal-handle"></div>
+    <h3>Editar ${fmtNum(p.num)}</h3>
+    <div class="form-group"><label>Cliente</label><select id="ep-cli">${clientOpts}</select></div>
+    <div class="form-row">
+      <div class="form-group"><label>Categoria</label><select id="ep-cat">${catOpts}</select></div>
+      <div class="form-group"><label>Status</label>
+        <select id="ep-status">
+          ${['Rascunho','Enviada','Aprovada','Recusada'].map(s=>`<option${s===p.status?' selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Fornecedor</label><select id="ep-forn">${fornOpts}</select></div>
+    <div style="font-size:12px;font-weight:600;color:var(--yellow);margin:14px 0 8px">Itens</div>
+    <div id="np-itens-list"></div>
+    <button class="btn-ghost" style="width:100%;padding:10px;margin-bottom:14px" onclick="addItemProposta()">+ Adicionar item</button>
+    <div style="font-size:12px;font-weight:600;color:var(--yellow);margin-bottom:8px">Condições comerciais</div>
+    <div class="form-row">
+      <div class="form-group"><label>Prazo de entrega</label><input type="text" id="ep-prazo" value="${p.prazo||'10 dias úteis ou à combinar'}"></div>
+      <div class="form-group"><label>Forma de pagamento</label><input type="text" id="ep-pgto" value="${p.pgto||'À combinar'}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Frete</label><input type="text" id="ep-frete" value="${p.frete||'FOB'}"></div>
+      <div class="form-group"><label>Validade</label><input type="text" id="ep-validade" value="${p.validade||'15 dias'}"></div>
+    </div>
+    <div class="form-group"><label>Observações</label><textarea id="ep-obs">${p.obs||''}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn-yellow" onclick="salvarEdicaoProposta(${id})">Salvar</button>
+    </div>
+  `;
+  renderItensProposta();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function salvarEdicaoProposta(id) {
+  const p = propostas.find(x=>x.id===id);
+  if(!p) return;
+  const itens = coletarItensProposta();
+  p.clienteId = parseInt(document.getElementById('ep-cli').value)||0;
+  const c = clients.find(x=>x.id===p.clienteId)||{};
+  p.categoria = document.getElementById('ep-cat').value;
+  p.status = document.getElementById('ep-status').value;
+  p.fornecedorId = parseInt(document.getElementById('ep-forn').value)||0;
+  p.itens = itens;
+  p.valor = itens.reduce((a,i)=>a+(i.valorTotal||0),0);
+  p.prazo = document.getElementById('ep-prazo').value;
+  p.pgto = document.getElementById('ep-pgto').value;
+  p.frete = document.getElementById('ep-frete').value;
+  p.validade = document.getElementById('ep-validade').value;
+  p.obs = document.getElementById('ep-obs').value;
+  saveData();
+  scheduleSync();
+  closeModal();
+  render();
 }
 
 // ─── CRUD ─────────────────────────────────────────────────
