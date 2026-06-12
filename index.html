@@ -419,7 +419,11 @@ html, body { height: 100%; background: var(--black); color: var(--text); font-fa
       <label>Senha</label>
       <input type="password" id="login-pass" placeholder="Digite a senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
-    <button class="login-btn" onclick="doLogin()">Entrar</button>
+    <div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px;font-size:13px;color:var(--text2)">
+  <input type="checkbox" id="login-lembrar" style="width:16px;height:16px;accent-color:var(--yellow);cursor:pointer">
+  <label for="login-lembrar" style="cursor:pointer">Manter logado</label>
+</div>
+<button class="login-btn" onclick="doLogin()">Entrar</button>
     <div class="login-error" id="login-error"></div>
   </div>
 </div>
@@ -578,9 +582,13 @@ function doLogin() {
   const user = (document.getElementById('login-user').value||'').toLowerCase().trim();
   const pass = document.getElementById('login-pass').value;
   const err = document.getElementById('login-error');
+  const lembrar = document.getElementById('login-lembrar');
   if(USERS[user] && USERS[user] === pass) {
     document.getElementById('login-overlay').style.display = 'none';
     sessionStorage.setItem('axval_auth', '1');
+    if(lembrar && lembrar.checked) {
+      localStorage.setItem('axval_auth_persist', '1');
+    }
     err.textContent = '';
   } else {
     err.textContent = 'Usuário ou senha incorretos.';
@@ -589,12 +597,15 @@ function doLogin() {
 }
 
 function checkAuth() {
-  if(!sessionStorage.getItem('axval_auth')) {
-    const overlay = document.getElementById('login-overlay');
-    if(overlay) overlay.style.display = 'flex';
-  } else {
+  const persist = localStorage.getItem('axval_auth_persist');
+  const session = sessionStorage.getItem('axval_auth');
+  if(persist === '1' || session === '1') {
     const overlay = document.getElementById('login-overlay');
     if(overlay) overlay.style.display = 'none';
+    sessionStorage.setItem('axval_auth', '1');
+  } else {
+    const overlay = document.getElementById('login-overlay');
+    if(overlay) overlay.style.display = 'flex';
   }
 }
 
