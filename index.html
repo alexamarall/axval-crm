@@ -365,9 +365,64 @@ html, body { height: 100%; background: var(--black); color: var(--text); font-fa
   .modal { border-radius: 20px; margin: auto; }
   .modal-overlay { align-items: center; }
 }
+
+/* LOGIN */
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--black);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.login-box {
+  background: var(--black2);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+}
+.login-logo {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.login-logo .ax { color: var(--yellow); }
+.login-sub { font-size: 12px; color: var(--text2); margin-bottom: 28px; letter-spacing: 2px; }
+.login-field { margin-bottom: 14px; text-align: left; }
+.login-field label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 5px; }
+.login-field input { width: 100%; padding: 11px 14px; background: var(--black3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; font-family: inherit; outline: none; }
+.login-field input:focus { border-color: var(--yellow); }
+.login-btn { width: 100%; padding: 12px; background: var(--yellow); color: var(--black); border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 6px; }
+.login-btn:hover { background: var(--yellow2); }
+.login-error { font-size: 12px; color: #f87171; margin-top: 10px; min-height: 18px; }
+
 </style>
 </head>
 <body>
+
+
+<!-- LOGIN -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <div class="login-logo"><span class="ax">Axval</span> Soluções</div>
+    <div class="login-sub">CRM · ACESSO RESTRITO</div>
+    <div class="login-field">
+      <label>Usuário</label>
+      <input type="text" id="login-user" placeholder="Digite o usuário" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label>Senha</label>
+      <input type="password" id="login-pass" placeholder="Digite a senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Entrar</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
 
 <div class="topbar">
   <div class="logo">
@@ -511,6 +566,37 @@ let fornecedores = [
 
 const CATEGORIAS = ['Bombas','Projetos','Peças','Kits'];
 const ESTAGIOS = ['Prospecção','Proposta','Ganho','Perdido'];
+
+
+// ─── LOGIN ─────────────────────────────────────────────────
+const USERS = {
+  'alex': 'axval2024',
+  'axval': 'axval2024'
+};
+
+function doLogin() {
+  const user = (document.getElementById('login-user').value||'').toLowerCase().trim();
+  const pass = document.getElementById('login-pass').value;
+  const err = document.getElementById('login-error');
+  if(USERS[user] && USERS[user] === pass) {
+    document.getElementById('login-overlay').style.display = 'none';
+    sessionStorage.setItem('axval_auth', '1');
+    err.textContent = '';
+  } else {
+    err.textContent = 'Usuário ou senha incorretos.';
+    document.getElementById('login-pass').value = '';
+  }
+}
+
+function checkAuth() {
+  if(!sessionStorage.getItem('axval_auth')) {
+    const overlay = document.getElementById('login-overlay');
+    if(overlay) overlay.style.display = 'flex';
+  } else {
+    const overlay = document.getElementById('login-overlay');
+    if(overlay) overlay.style.display = 'none';
+  }
+}
 
 // ─── UF E CIDADES ─────────────────────────────────────────
 const UFS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
@@ -1645,6 +1731,7 @@ document.querySelector('.topbar-actions').insertAdjacentHTML('beforeend',
   '<button class="btn-ghost" onclick="showBackupMenu()" style="padding:7px 10px">⚙</button>'
 );
 
+checkAuth();
 loadData();
 syncFromSheets();
 
